@@ -17,6 +17,8 @@ const JWT = require('express-jwt');
 const timeout = require('connect-timeout');
 const fs = require('fs');
 const moment = require('moment');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
 
 const routes= require('./routes');
 
@@ -98,9 +100,26 @@ if (config.mongooseDebug) {
   });
 }
 
-// listen on port config.port
-app.listen(config.port, () => {
-	console.info(`server started on port ${config.port} (${config.env})`);
-});
+/*
+ SCALING APP i,e cloning using cluster module 
+*/
+if(cluster.isMaster && false) {//temporary
+  console.log(`Master ${process.pid} is running`);
+  // Fork workers.
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died`);
+  });
+} else {
+	// Workers can share any TCP connection
+	// In this case it is an HTTP server
+	// listen on port config.port
+	app.listen(config.port, () => {
+		console.info(`server started on port ${config.port} (${config.env})`);
+	});
+	console.log(`Worker ${process.pid} started`);
+}
 
 module.exports = app;
