@@ -44,6 +44,7 @@ app.use(timeout(60000));
 app.use((req, res, next)=>{
     if (!req.timedout) next();
 });
+app.use("/uploads", express.static("uploads"));
 
 /*
 app.use(JWT({secret:config.jwtSecret}).unless({
@@ -51,34 +52,25 @@ app.use(JWT({secret:config.jwtSecret}).unless({
     ]})
 );
 */
+//API URL
+app.use('/api', routes);
 
 /*Generic error*/
 app.use(function(err, req, res, next) {
+    console.log();
     if(!res.finished){
-        console.log("Generic error recieved at middleware");
-        console.error(err);
-        return res.status(err.status).json({status_code: err.status,  message: err.message});
+        console.log("Middileware error");
+        next(err);
+        //return res.status(err.status).json({status_code: err.status,  message: err.message});
     }
 });
 
 
 // catch 404 and forward to error handler
 app.use((req, res, next) => {
-  const err = new APIError('API not found', httpStatus.NOT_FOUND);
-  return next(err);
+  console.log();
+  return res.status(httpStatus.NOT_FOUND).json({status: httpStatus.NOT_FOUND, message: "API does not exits."});
 });
-
-
-// error handler, send stacktrace only during development
-app.use((err, req, res, next) => // eslint-disable-line no-unused-vars
-  res.status(err.status).json({
-    message: err.isPublic ? err.message : httpStatus[err.status],
-    stack: config.env === 'development' ? err.stack : {}
-  })
-);
-
-//API URL
-app.use('/api', routes);
 
 // connect to mongo db
 const mongoUri = `mongodb://${config.mongo.host}:${config.mongo.port}/${config.mongo.db}`;
@@ -103,7 +95,7 @@ if (config.mongooseDebug) {
 /*
  SCALING APP i,e cloning using cluster module 
 */
-if(cluster.isMaster && false) {//temporary
+if(cluster.isMaster && false) {//skip scale
   console.log(`Master ${process.pid} is running`);
   // Fork workers.
   for (let i = 0; i < numCPUs; i++) {
